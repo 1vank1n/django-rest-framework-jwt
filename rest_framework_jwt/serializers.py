@@ -27,7 +27,7 @@ class JSONWebTokenSerializer(Serializer):
     Returns a JSON Web Token that can be used to authenticate later calls.
     """
 
-    password = serializers.CharField(write_only=True)
+    pin = serializers.CharField(write_only=True)
 
     def __init__(self, *args, **kwargs):
         """
@@ -48,7 +48,7 @@ class JSONWebTokenSerializer(Serializer):
     def validate(self, attrs):
         credentials = {
             self.username_field: attrs.get(self.username_field),
-            'password': attrs.get('password')
+            'pin': attrs.get('pin')
         }
 
         if all(credentials.values()):
