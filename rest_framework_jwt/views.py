@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 
-from rest_framework_jwt.settings import api_settings
-
+from .settings import api_settings
+from .compat import get_request_data
 from .serializers import (
     JSONWebTokenSerializer, RefreshJSONWebTokenSerializer,
     VerifyJSONWebTokenSerializer
@@ -16,7 +16,6 @@ class JSONWebTokenAPIView(APIView):
     """
     Base API View that various JWT interactions inherit from.
     """
-    throttle_classes = ()
     permission_classes = ()
     authentication_classes = ()
 
@@ -52,8 +51,10 @@ class JSONWebTokenAPIView(APIView):
         kwargs['context'] = self.get_serializer_context()
         return serializer_class(*args, **kwargs)
 
-    def post(self, request):
-        serializer = self.get_serializer(data=request.DATA)
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            data=get_request_data(request)
+        )
 
         if serializer.is_valid():
             user = serializer.object.get('user') or request.user

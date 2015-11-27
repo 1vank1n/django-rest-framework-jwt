@@ -1,41 +1,59 @@
 import jwt
-
+import warnings
+from calendar import timegm
 from datetime import datetime
 
+from rest_framework_jwt.compat import get_username, get_username_field
 from rest_framework_jwt.settings import api_settings
 
 
-def get_user_model():
-    try:
-        from django.contrib.auth import get_user_model
-    except ImportError:  # Django < 1.5
-        from django.contrib.auth.models import User
-    else:
-        User = get_user_model()
-
-    return User
-
-
 def jwt_payload_handler(user):
-    try:
-        username = user.get_username()
-    except AttributeError:
-        username = user.username
+    username_field = get_username_field()
+    username = get_username(user)
 
-    return {
+    warnings.warn(
+        'The following fields will be removed in the future: '
+        '`email` and `user_id`. ',
+        DeprecationWarning
+    )
+
+    payload = {
         'user_id': user.pk,
         'phone': user.phone,
         'username': username,
         'exp': datetime.utcnow() + api_settings.JWT_EXPIRATION_DELTA
     }
 
+    payload[username_field] = username
+
+    # Include original issued at time for a brand new token,
+    # to allow token refresh
+    if api_settings.JWT_ALLOW_REFRESH:
+        payload['orig_iat'] = timegm(
+            datetime.utcnow().utctimetuple()
+        )
+
+    return payload
+
 
 def jwt_get_user_id_from_payload_handler(payload):
     """
     Override this function if user_id is formatted differently in payload
     """
-    user_id = payload.get('user_id')
-    return user_id
+    warnings.warn(
+        'The following will be removed in the future. '
+        'Use `JWT_PAYLOAD_GET_USERNAME_HANDLER` instead.',
+        DeprecationWarning
+    )
+
+    return payload.get('user_id')
+
+
+def jwt_get_username_from_payload_handler(payload):
+    """
+    Override this function if username is formatted differently in payload
+    """
+    return payload.get('username')
 
 
 def jwt_encode_handler(payload):

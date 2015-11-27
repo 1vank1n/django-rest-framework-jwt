@@ -1,10 +1,12 @@
 import json
 import base64
+import pytest
 
-from django.contrib.auth import get_user_model
-from django.test import TestCase
 import jwt.exceptions
+from django.test import TestCase
+
 from rest_framework_jwt import utils
+from rest_framework_jwt.compat import get_user_model
 from rest_framework_jwt.settings import api_settings, DEFAULTS
 
 User = get_user_model()
@@ -27,6 +29,8 @@ class UtilsTests(TestCase):
 
     def test_jwt_payload_handler(self):
         payload = utils.jwt_payload_handler(self.user)
+
+        pytest.deprecated_call(utils.jwt_payload_handler, self.user)
 
         self.assertTrue(isinstance(payload, dict))
         self.assertEqual(payload['user_id'], self.user.pk)
@@ -81,7 +85,7 @@ class TestAudience(TestCase):
     def test_fail_audience_missing(self):
         payload = utils.jwt_payload_handler(self.user)
         token = utils.jwt_encode_handler(payload)
-        with self.assertRaises(jwt.exceptions.InvalidAudienceError):
+        with self.assertRaises(jwt.exceptions.MissingRequiredClaimError):
             utils.jwt_decode_handler(token)
 
     def test_fail_audience_wrong(self):
@@ -115,13 +119,13 @@ class TestIssuer(TestCase):
     def test_fail_issuer_missing(self):
         payload = utils.jwt_payload_handler(self.user)
         token = utils.jwt_encode_handler(payload)
-        with self.assertRaises(jwt.exceptions.InvalidIssuerError):
+        with self.assertRaises(jwt.exceptions.MissingRequiredClaimError):
             utils.jwt_decode_handler(token)
 
     def test_fail_issuer_wrong(self):
         payload = utils.jwt_payload_handler(self.user)
-        token = utils.jwt_encode_handler(payload)
         payload['iss'] = "example2.com"
+        token = utils.jwt_encode_handler(payload)
         with self.assertRaises(jwt.exceptions.InvalidIssuerError):
             utils.jwt_decode_handler(token)
 

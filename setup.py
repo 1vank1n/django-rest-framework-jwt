@@ -3,6 +3,7 @@
 
 import os
 import re
+import shutil
 import sys
 
 from setuptools import setup
@@ -26,7 +27,7 @@ author = 'Jose Padilla'
 author_email = 'jpadilla@getblimp.com'
 license = 'MIT'
 install_requires = [
-    'PyJWT>=1.3.0,<2.0.0',
+    'PyJWT>=1.4.0,<2.0.0',
 ]
 
 
@@ -72,6 +73,9 @@ if sys.argv[-1] == 'publish':
         sys.exit()
     os.system('python setup.py sdist bdist_wheel')
     os.system('twine upload dist/*')
+    shutil.rmtree('dist')
+    shutil.rmtree('build')
+    shutil.rmtree('djangorestframework_jwt.egg-info')
     print('You probably want to also tag the version now:')
     print("  git tag -a {0} -m 'version {0}'".format(version))
     print('  git push --tags')

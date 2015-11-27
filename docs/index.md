@@ -1,6 +1,6 @@
 <div class="badges">
     <a href="https://travis-ci.org/GetBlimp/django-rest-framework-jwt">
-        <img src="https://travis-ci.org/GetBlimp/django-rest-framework-jwt.png?branch=master">
+        <img src="https://travis-ci.org/GetBlimp/django-rest-framework-jwt.svg?branch=master">
     </a>
     <a href="https://pypi.python.org/pypi/djangorestframework-jwt">
         <img src="https://img.shields.io/pypi/v/djangorestframework-jwt.svg">
@@ -29,7 +29,7 @@ If you want to know more about JWT, check out the following resources:
 
 - Python (2.7, 3.3, 3.4)
 - Django (1.6, 1.7)
-- Django REST Framework (2.4.3, 2.4.4, 3.0.0)
+- Django REST Framework (2.4, 3.0, 3.1, 3.2)
 
 ## Installation
 
@@ -209,7 +209,10 @@ Default is `datetime.timedelta(days=7)` (7 days).
 Specify a custom function to generate the token payload
 
 ### JWT_PAYLOAD_GET_USER_ID_HANDLER
-If you store `user_id` differently than the default payload handler does, implement this function to fetch `user_id` from the payload.
+If you store `user_id` differently than the default payload handler does, implement this function to fetch `user_id` from the payload. **Note:** Will be deprecated in favor of `JWT_PAYLOAD_GET_USERNAME_HANDLER`.
+
+### JWT_PAYLOAD_GET_USERNAME_HANDLER
+If you store `username` differently than the default payload handler does, implement this function to fetch `username` from the payload.
 
 ### JWT_RESPONSE_PAYLOAD_HANDLER
 Responsible for controlling the response data returned after login or refresh. Override to return a custom response such as including the serialized representation of the User.
@@ -245,6 +248,20 @@ class JSONWebTokenAuthenticationQS(BaseJSONWebTokenAuthentication):
          return request.QUERY_PARAMS.get('jwt')
 ```
 It is recommended to use `BaseJSONWebTokenAuthentication`, a new base class with no logic around parsing the HTTP headers.
+
+## Creating a new token manually ##
+
+Sometimes you may want to manually generate a token, for example to return a token to the user immediately after account creation. You can do this as follows:
+
+```python
+from rest_framework_jwt.settings import api_settings
+
+jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
+jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
+
+payload = jwt_payload_handler(user)
+token = jwt_encode_handler(payload)
+```
 
 [jwt-auth-spec]: http://tools.ietf.org/html/draft-ietf-oauth-json-web-token
 [drf]: http://django-rest-framework.org/

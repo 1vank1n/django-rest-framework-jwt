@@ -8,14 +8,17 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from .compat import Serializer
 
-from rest_framework_jwt import utils
 from rest_framework_jwt.settings import api_settings
+from rest_framework_jwt.compat import (
+    get_user_model, get_username_field, PasswordField
+)
 
 
+User = get_user_model()
 jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
 jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
 jwt_decode_handler = api_settings.JWT_DECODE_HANDLER
-jwt_get_user_id_from_payload = api_settings.JWT_PAYLOAD_GET_USER_ID_HANDLER
+jwt_get_username_from_payload = api_settings.JWT_PAYLOAD_GET_USERNAME_HANDLER
 
 
 class JSONWebTokenSerializer(Serializer):
@@ -27,23 +30,18 @@ class JSONWebTokenSerializer(Serializer):
     Returns a JSON Web Token that can be used to authenticate later calls.
     """
 
-    pin = serializers.CharField(write_only=True)
-
     def __init__(self, *args, **kwargs):
         """
         Dynamically add the USERNAME_FIELD to self.fields.
         """
         super(JSONWebTokenSerializer, self).__init__(*args, **kwargs)
+
         self.fields[self.username_field] = serializers.CharField()
+        self.fields['pin'] = serializers.CharField(write_only=True)
 
     @property
     def username_field(self):
-        User = utils.get_user_model()
-
-        try:
-            return User.USERNAME_FIELD
-        except AttributeError:
-            return 'username'
+        return get_username_field()
 
     def validate(self, attrs):
         credentials = {
@@ -60,13 +58,6 @@ class JSONWebTokenSerializer(Serializer):
                     raise serializers.ValidationError(msg)
 
                 payload = jwt_payload_handler(user)
-
-                # Include original issued at time for a brand new token,
-                # to allow token refresh
-                if api_settings.JWT_ALLOW_REFRESH:
-                    payload['orig_iat'] = timegm(
-                        datetime.utcnow().utctimetuple()
-                    )
 
                 return {
                     'token': jwt_encode_handler(payload),
@@ -106,18 +97,21 @@ class VerificationBaseSerializer(Serializer):
         return payload
 
     def _check_user(self, payload):
-        User = utils.get_user_model()
-        # Make sure user exists (may want to refactor this)
-        try:
-            user_id = jwt_get_user_id_from_payload(payload)
+        username = jwt_get_username_from_payload(payload)
 
-            if user_id is not None:
-                user = User.objects.get(pk=user_id, is_active=True)
-            else:
-                msg = _('Invalid payload.')
-                raise serializers.ValidationError(msg)
+        if not username:
+            msg = _('Invalid payload.')
+            raise serializers.ValidationError(msg)
+
+        # Make sure user exists
+        try:
+            user = User.objects.get_by_natural_key(username)
         except User.DoesNotExist:
             msg = _("User doesn't exist.")
+            raise serializers.ValidationError(msg)
+
+        if not user.is_active:
+            msg = _('User account is disabled.')
             raise serializers.ValidationError(msg)
 
         return user
